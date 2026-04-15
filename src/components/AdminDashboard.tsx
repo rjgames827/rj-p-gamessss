@@ -701,13 +701,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
             {uploadSuccess && <p className="text-green-500">{uploadSuccess}</p>}
             <select value={uploadType} onChange={(e) => setUploadType(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white">
               <option value="movie">Movie</option>
-              <option value="anime">Anime</option>
+ <option value="anime">Anime</option>
               <option value="manga">Manga</option>
               <option value="tv">TV Show</option>
+              <option value="game">Game</option>
             </select>
             <input type="text" placeholder="Title" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
             <input type="text" placeholder="Google Drive Link" value={driveLink} onChange={(e) => setDriveLink(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
             <input type="text" placeholder="Image Link" value={imageLink} onChange={(e) => setImageLink(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
+            <input type="text" placeholder={uploadType === 'game' ? 'Game Title' : 'Title'} value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
+            <input type="text" placeholder={uploadType === 'game' ? 'Game Link / Embed URL' : 'Google Drive Link'} value={driveLink} onChange={(e) => setDriveLink(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
+            <input type="text" placeholder={uploadType === 'game' ? 'Thumbnail Image Link' : 'Image Link'} value={imageLink} onChange={(e) => setImageLink(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
             <button onClick={handleUpload} className="w-full bg-accent text-black font-black uppercase py-3 rounded-xl hover:bg-accent/90 transition-all">Upload</button>
           </div>
         )}
