@@ -91,7 +91,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
   const [driveLink, setDriveLink] = useState('');
   const [imageLink, setImageLink] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
-
+  
   const handleUpload = async () => {
     if (!uploadTitle || !driveLink || !imageLink) {
       setError('Please fill in all fields.');
@@ -115,6 +115,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
       handleFirestoreError(err, OperationType.CREATE, 'uploads');
     }
   };
+
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [appeals, setAppeals] = useState<Appeal[]>([]);
@@ -128,7 +129,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
   const [newVersion, setNewVersion] = useState('');
   const [newDate, setNewDate] = useState(() => {
     const now = new Date();
-    return now.toISOString().slice(0, 16); // Format: 2026-04-15T12:30
+    return now.toISOString().slice(0, 16);
   });
   const [newChanges, setNewChanges] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -143,11 +144,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
 
   useEffect(() => {
     if (activeTab === 'analytics' || activeTab === 'upload') return;
-
     setIsLoading(true);
-    setError(null); // Clear previous errors
+    setError(null);
     let unsubscribe: () => void = () => {};
-
     try {
       if (activeTab === 'announcements') {
         const q = query(collection(db, 'site_announcements'), orderBy('createdAt', 'desc'), limit(100));
@@ -205,10 +204,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
         const q = query(collection(db, 'users'), limit(500));
         unsubscribe = onSnapshot(q, (snapshot) => {
           console.log(`[AdminDashboard] Users snapshot received: ${snapshot.size} docs`);
-          setUsers(snapshot.docs.map(doc => ({ 
-            uid: doc.id, 
-            role: 'user', // Default role
-            ...doc.data() 
+          setUsers(snapshot.docs.map(doc => ({
+            uid: doc.id,
+            role: 'user',
+            ...doc.data()
           })) as User[]);
           setIsLoading(false);
           setError(null);
@@ -262,18 +261,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
       console.error("Error setting up listeners:", err);
       setIsLoading(false);
     }
-
     return () => unsubscribe();
   }, [activeTab]);
 
   const handleAddAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newContent.trim()) return;
-
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
-
     try {
       await addDoc(collection(db, 'site_announcements'), {
         title: newTitle,
@@ -334,7 +330,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
     if (!window.confirm('Are you sure you want to remove all other admins and reset all user roles to "user"? This cannot be undone.')) return;
     try {
       console.log('Starting admin removal...');
-      // 1. Clear allowed_admins
       const adminsRef = collection(db, 'allowed_admins');
       const adminSnapshot = await getDocs(adminsRef);
       console.log(`Found ${adminSnapshot.docs.length} allowed admins to remove.`);
@@ -343,9 +338,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
       setAllowedAdmins([]);
       console.log('Allowed admins cleared.');
 
-      // 2. Reset all users to 'user' role except super admin
       const usersRef = collection(db, 'users');
-      // Query only users with admin-related roles to save quota
       const adminRoles = ['admin', 'co-owner', 'owner'];
       const qUsers = query(usersRef, where('role', 'in', adminRoles), limit(500));
       const userSnapshot = await getDocs(qUsers);
@@ -359,7 +352,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
         });
       await Promise.all(updatePromises);
       console.log('Users demoted.');
-      
+     
       setSuccess('All other admins removed and roles reset successfully!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -370,9 +363,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
   };
 
   const handleUpdateUserRole = async (uid: string, newRole: 'admin' | 'co-owner' | 'owner' | 'user' | 'donator' | 'tester') => {
-    // Optimistic update
     setUsers(prev => prev.map(u => u.uid === uid ? { ...u, role: newRole } : u));
-    
+   
     try {
       console.log(`[AdminDashboard] Updating user ${uid} role to ${newRole}`);
       await updateDoc(doc(db, 'users', uid), {
@@ -387,23 +379,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
   };
 
   const handleToggleBan = async (uid: string, currentBanned: boolean) => {
-    // Optimistic update
     setUsers(prev => prev.map(u => u.uid === uid ? { ...u, banned: !currentBanned } : u));
-    
+   
     try {
       console.log(`[AdminDashboard] Toggling ban for user ${uid} (current: ${currentBanned})`);
       await updateDoc(doc(db, 'users', uid), {
         banned: !currentBanned
       });
-      
-      // If unbanning, also mark any pending appeals as approved
+     
       if (currentBanned) {
         const pendingAppeals = appeals.filter(a => a.userId === uid && a.status === 'pending');
         for (const appeal of pendingAppeals) {
           await updateDoc(doc(db, 'appeals', appeal.id), { status: 'approved' });
         }
       }
-
       setSuccess(`User ${!currentBanned ? 'banned' : 'unbanned'} successfully!`);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -415,7 +404,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
   const handleDeleteUser = async (uid: string) => {
     if (!isSuperAdmin) return;
     if (!window.confirm('Are you sure you want to PERMANENTLY delete this user? This cannot be undone.')) return;
-    
+   
     try {
       console.log(`[AdminDashboard] Deleting user ${uid}`);
       await deleteDoc(doc(db, 'users', uid));
@@ -444,11 +433,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAdminEmail.trim()) return;
-
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
-
     try {
       const email = newAdminEmail.trim().toLowerCase();
       await setDoc(doc(db, 'allowed_admins', email), {
@@ -456,15 +443,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
         addedBy: auth.currentUser?.uid,
         createdAt: serverTimestamp()
       });
-
-      // Update existing user role if they already have an account
       const usersRef = collection(db, 'users');
       const querySnapshot = await getDocs(usersRef);
       const updatePromises = querySnapshot.docs
         .filter(docSnap => docSnap.data().email?.toLowerCase() === email)
         .map(docSnap => updateDoc(doc(db, 'users', docSnap.id), { role: 'admin' }));
       await Promise.all(updatePromises);
-
       setNewAdminEmail('');
       setSuccess('Admin email added successfully!');
       setTimeout(() => setSuccess(null), 3000);
@@ -479,8 +463,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
   const handleDeleteAdmin = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'allowed_admins', id));
-      
-      // Update existing user role back to user
+     
       const usersRef = collection(db, 'users');
       const querySnapshot = await getDocs(usersRef);
       const updatePromises = querySnapshot.docs
@@ -495,18 +478,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
   const handleAddUpdateLog = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDate.trim() || !newChanges.trim()) return;
-
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
-
     try {
       const changesArray = newChanges.split('\n').filter(c => c.trim());
-      
-      // Auto-generate version if not provided
+     
       let version = newVersion.trim();
       if (!version && updateLogs.length > 0) {
-        // Get the latest version and increment patch number
         const latestLog = updateLogs[0];
         if (latestLog.version) {
           const versionParts = latestLog.version.split('.');
@@ -517,16 +496,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
         }
       }
       if (!version) {
-        version = '1.0.0'; // Default first version
+        version = '1.0.0';
       }
-      
+     
       await addDoc(collection(db, 'update_logs'), {
         version: version,
         date: newDate.trim(),
         changes: changesArray
       });
       setNewVersion('');
-      setNewDate(new Date().toISOString().slice(0, 16)); // Reset to current time
+      setNewDate(new Date().toISOString().slice(0, 16));
       setNewChanges('');
       setSuccess('Update log added successfully!');
       setTimeout(() => setSuccess(null), 3000);
@@ -548,7 +527,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
 
   const handleApproveHallRequest = async (request: HallRequest) => {
     try {
-      // Add to Hall of Cornballs
       await addDoc(collection(db, 'hall_of_autism'), {
         name: request.name,
         imageUrl: request.imageUrl,
@@ -556,12 +534,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
         createdAt: serverTimestamp(),
         uploadedBy: 'admin_approved',
       });
-      
-      // Update request status
+     
       await updateDoc(doc(db, 'hall_of_autism_requests', request.id), {
         status: 'approved'
       });
-      
+     
       setSuccess('Request approved and added to Hall of Cornballs!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -593,14 +570,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
 
   const handleApproveTakedown = async (request: TakedownRequest) => {
     try {
-      // Delete the entry from Hall of Cornballs
       await deleteDoc(doc(db, 'hall_of_autism', request.entryId));
-      
-      // Update takedown request status
+     
       await updateDoc(doc(db, 'hall_of_autism_takedowns', request.id), {
         status: 'approved'
       });
-      
+     
       setSuccess('Takedown approved and entry removed from Hall of Cornballs!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -643,7 +618,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
             <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Authorized Personnel Only</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={onClose}
           className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-all border border-white/5"
         >
@@ -678,7 +653,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
             <tab.icon size={14} />
             {tab.label}
             {activeTab === tab.id && (
-              <motion.div 
+              <motion.div
                 layoutId="activeTab"
                 className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent"
               />
@@ -695,29 +670,60 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
           </div>
         )}
 
+        {/* UPLOAD TAB - Duplicates removed */}
         {!isLoading && activeTab === 'upload' && (
           <div className="p-6 space-y-6">
             <h3 className="text-xl font-black uppercase italic tracking-tighter">Upload New Content</h3>
             {uploadSuccess && <p className="text-green-500">{uploadSuccess}</p>}
-            <select value={uploadType} onChange={(e) => setUploadType(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white">
+            
+            <select 
+              value={uploadType} 
+              onChange={(e) => setUploadType(e.target.value)} 
+              className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white"
+            >
               <option value="movie">Movie</option>
- <option value="anime">Anime</option>
+              <option value="anime">Anime</option>
               <option value="manga">Manga</option>
               <option value="tv">TV Show</option>
               <option value="game">Game</option>
             </select>
-            <input type="text" placeholder="Title" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
-            <input type="text" placeholder="Google Drive Link" value={driveLink} onChange={(e) => setDriveLink(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
-            <input type="text" placeholder="Image Link" value={imageLink} onChange={(e) => setImageLink(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
-            <input type="text" placeholder={uploadType === 'game' ? 'Game Title' : 'Title'} value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
-            <input type="text" placeholder={uploadType === 'game' ? 'Game Link / Embed URL' : 'Google Drive Link'} value={driveLink} onChange={(e) => setDriveLink(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
-            <input type="text" placeholder={uploadType === 'game' ? 'Thumbnail Image Link' : 'Image Link'} value={imageLink} onChange={(e) => setImageLink(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
-            <button onClick={handleUpload} className="w-full bg-accent text-black font-black uppercase py-3 rounded-xl hover:bg-accent/90 transition-all">Upload</button>
+
+            {/* Single set of inputs with conditional placeholders (duplicates removed) */}
+            <input 
+              type="text" 
+              placeholder={uploadType === 'game' ? 'Game Title' : 'Title'} 
+              value={uploadTitle} 
+              onChange={(e) => setUploadTitle(e.target.value)} 
+              className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" 
+            />
+            
+            <input 
+              type="text" 
+              placeholder={uploadType === 'game' ? 'Game Link / Embed URL' : 'Google Drive Link'} 
+              value={driveLink} 
+              onChange={(e) => setDriveLink(e.target.value)} 
+              className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" 
+            />
+            
+            <input 
+              type="text" 
+              placeholder={uploadType === 'game' ? 'Thumbnail Image Link' : 'Image Link'} 
+              value={imageLink} 
+              onChange={(e) => setImageLink(e.target.value)} 
+              className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" 
+            />
+
+            <button 
+              onClick={handleUpload} 
+              className="w-full bg-accent text-black font-black uppercase py-3 rounded-xl hover:bg-accent/90 transition-all"
+            >
+              Upload
+            </button>
           </div>
         )}
+
         {!isLoading && activeTab === 'announcements' && (
           <div className="space-y-8">
-            {/* New Announcement Form */}
             <form onSubmit={handleAddAnnouncement} className="bg-white/5 rounded-2xl p-6 border border-white/5 space-y-4">
               <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
                 <Plus size={16} className="text-accent" />
@@ -746,7 +752,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
               >
                 {isSubmitting ? 'Posting...' : 'Post Announcement'}
               </button>
-              
+             
               <AnimatePresence>
                 {error && (
                   <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 text-red-500 text-xs font-bold bg-red-500/10 p-3 rounded-xl border border-red-500/20">
@@ -763,7 +769,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
               </AnimatePresence>
             </form>
 
-            {/* List */}
             <div className="space-y-4">
               <h3 className="text-sm font-black uppercase tracking-widest text-neutral-500">Recent Announcements</h3>
               {announcements.length === 0 ? (
@@ -782,14 +787,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                       </p>
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                      <button 
+                      <button
                         onClick={() => toggleAnnouncementStatus(ann.id, ann.active)}
                         className={`p-2 rounded-lg transition-all ${ann.active ? 'bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20' : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'}`}
                         title={ann.active ? 'Deactivate' : 'Activate'}
                       >
                         <Edit2 size={14} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDeleteAnnouncement(ann.id)}
                         className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
                         title="Delete"
@@ -843,7 +848,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                   </div>
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all shrink-0">
                     {suggestion.status === 'pending' && (
-                      <button 
+                      <button
                         onClick={() => handleMarkSuggestionReviewed(suggestion.id)}
                         className="p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-colors"
                         title="Mark as Reviewed"
@@ -851,7 +856,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                         <Check size={14} />
                       </button>
                     )}
-                    <button 
+                    <button
                       onClick={() => handleDeleteSuggestion(suggestion.id)}
                       className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors"
                       title="Delete Suggestion"
@@ -867,7 +872,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
 
         {activeTab === 'updatelogs' && (
           <div className="space-y-8">
-            {/* New Update Log Form */}
             <form onSubmit={handleAddUpdateLog} className="bg-white/5 rounded-2xl p-6 border border-white/5 space-y-4">
               <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
                 <Plus size={16} className="text-accent" />
@@ -904,7 +908,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
               >
                 {isSubmitting ? 'Adding...' : 'Add Update Log'}
               </button>
-              
+             
               <AnimatePresence>
                 {error && (
                   <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-center gap-2 text-red-500 text-xs font-bold bg-red-500/10 p-3 rounded-xl border border-red-500/20">
@@ -921,7 +925,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
               </AnimatePresence>
             </form>
 
-            {/* List */}
             <div className="space-y-4">
               <h3 className="text-sm font-black uppercase tracking-widest text-neutral-500">Update History</h3>
               {updateLogs.length === 0 ? (
@@ -941,7 +944,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                       </ul>
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                      <button 
+                      <button
                         onClick={() => handleDeleteUpdateLog(log.id)}
                         className="p-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
                         title="Delete"
@@ -993,7 +996,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 shrink-0">
-                    <button 
+                    <button
                       onClick={() => handleApproveHallRequest(request)}
                       className="px-4 py-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-colors font-bold text-xs uppercase tracking-widest flex items-center gap-2"
                       title="Approve & Add"
@@ -1001,7 +1004,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                       <Check size={14} />
                       Approve
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDenyHallRequest(request.id)}
                       className="px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors font-bold text-xs uppercase tracking-widest flex items-center gap-2"
                       title="Deny Request"
@@ -1009,7 +1012,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                       <X size={14} />
                       Deny
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDeleteHallRequest(request.id)}
                       className="px-4 py-2 rounded-lg bg-neutral-500/10 hover:bg-neutral-500/20 text-neutral-500 transition-colors font-bold text-xs uppercase tracking-widest flex items-center gap-2"
                       title="Delete Request"
@@ -1063,7 +1066,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 shrink-0">
-                    <button 
+                    <button
                       onClick={() => handleApproveTakedown(request)}
                       className="px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors font-bold text-xs uppercase tracking-widest flex items-center gap-2"
                       title="Approve & Remove Entry"
@@ -1071,7 +1074,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                       <Check size={14} />
                       Remove Entry
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDenyTakedown(request.id)}
                       className="px-4 py-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-colors font-bold text-xs uppercase tracking-widest flex items-center gap-2"
                       title="Deny Takedown"
@@ -1079,7 +1082,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                       <X size={14} />
                       Keep Entry
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleDeleteTakedown(request.id)}
                       className="px-4 py-2 rounded-lg bg-neutral-500/10 hover:bg-neutral-500/20 text-neutral-500 transition-colors font-bold text-xs uppercase tracking-widest flex items-center gap-2"
                       title="Delete Request"
@@ -1104,7 +1107,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                 </button>
               )}
               <div className="flex gap-2">
-                <select 
+                <select
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value as any)}
                   className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white focus:outline-none focus:border-accent/50 transition-all cursor-pointer"
@@ -1155,7 +1158,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col items-end gap-2">
-                      <select 
+                      <select
                         value={user.role}
                         onChange={(e) => handleUpdateUserRole(user.uid, e.target.value as any)}
                         className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white focus:outline-none focus:border-accent/50 transition-all cursor-pointer"
@@ -1172,14 +1175,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                           </>
                         )}
                       </select>
-                      
+                     
                       {user.uid !== 'HfjrcUIslZPCvNI3fxiQJVK1ebB3' && (
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleToggleBan(user.uid, !!user.banned)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                              user.banned 
-                                ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' 
+                              user.banned
+                                ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
                                 : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
                             }`}
                           >
@@ -1195,7 +1198,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                               </>
                             )}
                           </button>
-                          
+                         
                           {isSuperAdmin && (
                             <button
                               onClick={() => handleDeleteUser(user.uid)}
@@ -1251,21 +1254,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
           <div className="space-y-6">
             <form onSubmit={handleAddAdmin} className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
               <h3 className="text-sm font-black uppercase tracking-widest text-accent">Add New Admin</h3>
-              
+             
               {error && (
                 <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-500 text-sm">
                   <AlertCircle size={16} />
                   {error}
                 </div>
               )}
-              
+             
               {success && (
                 <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center gap-2 text-green-500 text-sm">
                   <CheckCircle2 size={16} />
                   {success}
                 </div>
               )}
-
               <div className="space-y-2">
                 <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Email Address</label>
                 <input
@@ -1277,7 +1279,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                   required
                 />
               </div>
-
               <button
                 type="submit"
                 disabled={isSubmitting || !newAdminEmail.trim()}
@@ -1293,7 +1294,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                 )}
               </button>
             </form>
-
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase tracking-widest text-neutral-500">Allowed Admins</h3>
@@ -1314,7 +1314,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                         Added: {admin.createdAt?.toDate().toLocaleDateString()}
                       </p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => handleDeleteAdmin(admin.id)}
                       className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 opacity-0 group-hover:opacity-100 transition-all"
                       title="Remove Admin"
@@ -1327,6 +1327,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
             </div>
           </div>
         )}
+
         {activeTab === 'appeals' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -1354,7 +1355,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                     <div className="flex items-center gap-2">
                       <h4 className="font-bold text-white text-sm">{appeal.userEmail}</h4>
                       <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                        appeal.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' : 
+                        appeal.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' :
                         appeal.status === 'approved' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
                       }`}>
                         {appeal.status}
@@ -1367,14 +1368,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
                   </div>
                   {appeal.status === 'pending' && (
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                      <button 
+                      <button
                         onClick={() => handleAppealAction(appeal.id, appeal.userId, 'approved')}
                         className="p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-500 transition-colors"
                         title="Approve Appeal (Unban)"
                       >
                         <UserCheck size={14} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleAppealAction(appeal.id, appeal.userId, 'denied')}
                         className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-colors"
                         title="Deny Appeal"
@@ -1394,58 +1395,54 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
 };
 
 const AnalyticsTab = () => {
-    const [data, setData] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const apiUrl = (import.meta as any).env?.VITE_API_URL || window.location.origin;
-        console.log('Fetching analytics from:', apiUrl);
-        fetch(`${apiUrl}/api/analytics/data`)
-            .then(res => {
-                console.log('Response status:', res.status);
-                if (!res.ok) throw new Error('Failed to fetch analytics');
-                return res.json();
-            })
-            .then(data => {
-                // Map GA4 data to a format Recharts can use
-                const formattedData = data.rows?.map((row: any) => ({
-                    date: row.dimensionValues[0].value.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'),
-                    activeUsers: parseInt(row.metricValues[0].value, 10)
-                })).sort((a: any, b: any) => a.date.localeCompare(b.date)) || [];
-                
-                setData(formattedData);
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error(err);
-                setError('Failed to load analytics data.');
-                setLoading(false);
-            });
-    }, []);
-
-    if (loading) return <div className="p-6 text-center text-neutral-500">Loading analytics...</div>;
-    if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
-
-    return (
-        <div className="p-6 bg-white/5 rounded-2xl border border-white/5">
-            <h3 className="text-sm font-black uppercase tracking-widest text-neutral-500 mb-6">Active Users (Last 30 Days)</h3>
-            <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={data}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                        <XAxis dataKey="date" stroke="#666" fontSize={10} />
-                        <YAxis stroke="#666" fontSize={10} />
-                        <Tooltip 
-                            contentStyle={{ backgroundColor: '#000', borderColor: '#333', color: '#fff' }}
-                            itemStyle={{ color: '#fff' }}
-                        />
-                        <Line type="monotone" dataKey="activeUsers" stroke="#F27D26" strokeWidth={2} dot={{ r: 4 }} />
-                    </LineChart>
-                </ResponsiveContainer>
-            </div>
-        </div>
-    );
-}
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const apiUrl = (import.meta as any).env?.VITE_API_URL || window.location.origin;
+    console.log('Fetching analytics from:', apiUrl);
+    fetch(`${apiUrl}/api/analytics/data`)
+      .then(res => {
+        console.log('Response status:', res.status);
+        if (!res.ok) throw new Error('Failed to fetch analytics');
+        return res.json();
+      })
+      .then(data => {
+        const formattedData = data.rows?.map((row: any) => ({
+          date: row.dimensionValues[0].value.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'),
+          activeUsers: parseInt(row.metricValues[0].value, 10)
+        })).sort((a: any, b: any) => a.date.localeCompare(b.date)) || [];
+       
+        setData(formattedData);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setError('Failed to load analytics data.');
+        setLoading(false);
+      });
+  }, []);
+  if (loading) return <div className="p-6 text-center text-neutral-500">Loading analytics...</div>;
+  if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
+  return (
+    <div className="p-6 bg-white/5 rounded-2xl border border-white/5">
+      <h3 className="text-sm font-black uppercase tracking-widest text-neutral-500 mb-6">Active Users (Last 30 Days)</h3>
+      <div className="h-[300px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+            <XAxis dataKey="date" stroke="#666" fontSize={10} />
+            <YAxis stroke="#666" fontSize={10} />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#000', borderColor: '#333', color: '#fff' }}
+              itemStyle={{ color: '#fff' }}
+            />
+            <Line type="monotone" dataKey="activeUsers" stroke="#F27D26" strokeWidth={2} dot={{ r: 4 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
 
 export default AdminDashboard;
