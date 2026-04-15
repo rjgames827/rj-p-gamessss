@@ -838,7 +838,12 @@ const App: React.FC = () => {
                     )}
 
                     {activeCategory === 'games' && (
-                      <GamesHub />
+                      <>
+                        {uploads.filter(u => u.type === 'game').length > 0 && (
+                          <LibrarySection title={t('New Games')} items={uploads.filter(u => u.type === 'game').map(u => ({ t: u.title, l: u.driveLink, img: u.imageLink }))} category="game" searchQuery="" onOpenDetails={handleOpenDetails} showSearch={true} />
+                        )}
+                        <GamesHub />
+                      </>
                     )}
                     {activeCategory === 'chat' && (
                       <div className="mt-20 max-w-[1600px] mx-auto pb-40 px-4 relative">

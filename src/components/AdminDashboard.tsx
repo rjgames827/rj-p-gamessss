@@ -704,6 +704,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, isSuperAdmin, 
               <option value="anime">Anime</option>
               <option value="manga">Manga</option>
               <option value="tv">TV Show</option>
+              <option value="game">Game</option>
             </select>
             <input type="text" placeholder="Title" value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
             <input type="text" placeholder="Google Drive Link" value={driveLink} onChange={(e) => setDriveLink(e.target.value)} className="w-full bg-surface border border-white/10 rounded-xl p-3 text-white" />
